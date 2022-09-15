@@ -8,6 +8,8 @@ type Account struct {
 	balance int
 }
 
+var errNoMoney = errors.New("잔고금액이 부족합니다")
+
 func NewAccount(owner string) *Account {
 	account := Account{owner: owner, balance: 0}
 	return &account
@@ -27,7 +29,7 @@ func (a Account) Balance() int {
 
 func (a *Account) Withdraw(amount int) error {
 	if a.balance < amount {
-		return errors.New("잔고금액이 부족합니다")
+		return errNoMoney
 	}
 	a.balance -= amount
 	return nil
