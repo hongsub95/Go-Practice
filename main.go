@@ -1,7 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/hongsub/learngo/Go-Practice/accounts"
+)
 
 func main() {
-	fmt.Println("hello world!")
+	account := accounts.NewAccount("hongsub")
+	account.Deposit(10)
+	fmt.Println(account.Balance())
 }
