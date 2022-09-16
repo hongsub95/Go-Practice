@@ -22,10 +22,14 @@ func main() {
 
 func main() {
 	dictionary := mydict.Dictionary{"first": "First word"}
-	definition, err := dictionary.Search("first")
+	err := dictionary.Add("third", "third word")
 	if err != nil {
 		fmt.Println(err)
+	}
+	def, err2 := dictionary.Search("third")
+	if err2 != nil {
+		fmt.Println(err2)
 	} else {
-		fmt.Println(definition)
+		fmt.Println(def)
 	}
 }
