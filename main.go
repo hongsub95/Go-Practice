@@ -1,6 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"time"
+)
+
+/*
+import (
 	"errors"
 	"fmt"
 	"net/http"
@@ -42,4 +48,23 @@ func hitURL(url string) error {
 		return errRequestFailed
 	}
 	return nil
+}
+*/
+
+func main() {
+	c := make(chan string) //channel과 어떤 타입을 보낼건지
+	people := [6]string{"신", "홍", "섭", "개", "발", "자"}
+	for _, person := range people {
+		go isSexy(person, c)
+	}
+	for i := 0; i < len(people); i++ {
+		fmt.Print(i)
+		fmt.Println(<-c) //<-c는 blocking operation
+	}
+}
+
+//Channel을 이용하여 true 메세지를 보낸다, c로 true메세지를 보낸다
+func isSexy(person string, c chan string) {
+	time.Sleep(time.Second * 5)
+	c <- person
 }
