@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -22,16 +23,23 @@ type extractedJob struct {
 
 func main() {
 	var jobs []extractedJob
+	c := make(chan []extractedJob)
 	totalPages := getPages()
 	for i := 1; i < totalPages; i++ {
-		extractedjobs := getPage(i)
-		jobs = append(jobs, extractedjobs...)
+		go getPage(i, c)
+	}
+	for i := 1; i < totalPages; i++ {
+		extractedJob := <-c
+		jobs = append(jobs, extractedJob...)
 	}
 	writeJobs(jobs)
+	fmt.Println("당신이 추출한 갯수는", len(jobs), "개 입니다")
 }
 
-func getPage(page int) []extractedJob {
+//defer는 함수 끝날때 "이거 하겠다"라고 선언하는 명령문
+func getPage(page int, mainC chan<- []extractedJob) {
 	var jobs []extractedJob
+	c := make(chan extractedJob)
 	pageURL := BaseURL + "&recruitPage=" + strconv.Itoa(page)
 	res, err := http.Get(pageURL)
 	checkErr(err)
@@ -45,18 +53,22 @@ func getPage(page int) []extractedJob {
 	searchCards := doc.Find(".item_recruit")
 
 	searchCards.Each(func(i int, card *goquery.Selection) {
-		job := extractJob(card)
-		jobs = append(jobs, job)
+		go extractJob(card, c) //go 루틴을 만들고, extractjob함수에 channel인자를 보낸다
 	})
-	return jobs
+	for i := 0; i < searchCards.Length(); i++ {
+		job := <-c
+		jobs = append(jobs, job)
+	}
+	mainC <- jobs
 }
 
-func extractJob(card *goquery.Selection) extractedJob {
+//channel을 통해 보낼 메세지들을 return
+func extractJob(card *goquery.Selection, c chan<- extractedJob) {
 	id, _ := card.Attr("value")
 	company := cleanString(card.Find(".corp_name").Text())
 	title := cleanString(card.Find(".job_tit>a").Text())
 	location := cleanString(card.Find(".job_condition>span>a").Text())
-	return extractedJob{
+	c <- extractedJob{
 		id:       id,
 		company:  company,
 		title:    title,
@@ -86,7 +98,7 @@ func getPages() int {
 
 }
 
-// csv형태로 저장
+// csv형태로 저장, 함수끝나는 시점에 defer를 이용하여 flush로 저장
 func writeJobs(jobs []extractedJob) {
 	file, err := os.Create("jobs.csv")
 	checkErr(err)
@@ -94,7 +106,7 @@ func writeJobs(jobs []extractedJob) {
 	w := csv.NewWriter(file)
 	defer w.Flush()
 
-	headers := []string{"ID", "Company", "Title", "Location"}
+	headers := []string{"Link", "Company", "Title", "Location"}
 	wErr := w.Write(headers)
 	checkErr(wErr)
 	for _, job := range jobs {
