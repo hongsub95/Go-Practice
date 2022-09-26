@@ -5,22 +5,66 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 var BaseURL string = "https://www.saramin.co.kr/zf_user/search/recruit?searchType=search&searchword=python"
 
-func main() {
-	totalPages := getPages()
-	for i := 0; i < totalPages; i++ {
-		getPage(i)
-	}
+type extractedJob struct {
+	id       string
+	company  string
+	title    string
+	location string
 }
 
-func getPage(page int) {
+func main() {
+	var jobs []extractedJob
+	totalPages := getPages()
+	for i := 1; i < totalPages; i++ {
+		extractedjobs := getPage(i)
+		jobs = append(jobs, extractedjobs...)
+	}
+	fmt.Println(jobs)
+}
+
+func getPage(page int) []extractedJob {
+	var jobs []extractedJob
 	pageURL := BaseURL + "&recruitPage=" + strconv.Itoa(page)
-	fmt.Println(pageURL)
+	res, err := http.Get(pageURL)
+	checkErr(err)
+	checkCode(res)
+
+	defer res.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	checkErr(err)
+
+	searchCards := doc.Find(".item_recruit")
+
+	searchCards.Each(func(i int, card *goquery.Selection) {
+		job := extractJob(card)
+		jobs = append(jobs, job)
+	})
+	return jobs
+}
+
+func extractJob(card *goquery.Selection) extractedJob {
+	id, _ := card.Attr("value")
+	company := cleanString(card.Find(".corp_name").Text())
+	title := cleanString(card.Find(".job_tit>a").Text())
+	location := cleanString(card.Find(".job_condition>span>a").Text())
+	return extractedJob{
+		id:       id,
+		company:  company,
+		title:    title,
+		location: location}
+}
+
+//배열의 스페이스 없이 오직 텍스트만 갖고싶을때
+func cleanString(str string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(str)), " ")
 }
 
 func getPages() int {
@@ -41,6 +85,18 @@ func getPages() int {
 
 }
 
+func checkErr(err error) {
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func checkCode(res *http.Response) {
+	if res.StatusCode != 200 {
+		log.Fatalln("Request failed with Status", res.StatusCode)
+	}
+}
+
 /*
 http.Get 이용시 403 status코드가 나옴. newrequest를 통해 request객체를 만들고 header를 추가(사이트 마다 다름)
 
@@ -55,15 +111,3 @@ func getHttp(url string) *http.Response {
 	return res
 }
 */
-
-func checkErr(err error) {
-	if err != nil {
-		log.Fatalln(err)
-	}
-}
-
-func checkCode(res *http.Response) {
-	if res.StatusCode != 200 {
-		log.Fatalln("Request failed with Status", res.StatusCode)
-	}
-}
