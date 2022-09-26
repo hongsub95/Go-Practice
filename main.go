@@ -1,52 +1,69 @@
 package main
 
 import (
-	"errors"
 	"fmt"
+	"log"
 	"net/http"
+	"strconv"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
-type resultRequest struct {
-	url    string
-	status string
-}
-
-var errRequestFailed = errors.New("Request Fail")
+var BaseURL string = "https://www.saramin.co.kr/zf_user/search/recruit?searchType=search&searchword=python"
 
 func main() {
-	results := make(map[string]string)
-	c := make(chan resultRequest)
-	urls := []string{
-		"https://www.airbnb.com/",
-		"https://www.google.com/",
-		"https://www.amazon.com/",
-		"https://www.reddit.com/",
-		"https://www.google.com/",
-		"https://soundcloud.com/",
-		"https://www.facebook.com/",
-		"https://www.instagram.com/",
-		"https://academy.nomadcoders.co/",
+	totalPages := getPages()
+	for i := 0; i < totalPages; i++ {
+		getPage(i)
 	}
-	for _, url := range urls {
-		go hitURL(url, c)
-	}
-	for i := 0; i < len(urls); i++ {
-		result := <-c
-		results[result.url] = result.status
-	}
-	for url, status := range results {
-		fmt.Println(url, status)
-	}
+}
+
+func getPage(page int) {
+	pageURL := BaseURL + "&recruitPage=" + strconv.Itoa(page)
+	fmt.Println(pageURL)
+}
+
+func getPages() int {
+	// res := getHttp(BaseURL)
+	pages := 0
+	res, err := http.Get(BaseURL)
+	checkErr(err)
+	checkCode(res)
+
+	defer res.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	checkErr(err)
+	doc.Find(".pagination").Each(func(i int, s *goquery.Selection) {
+		pages = s.Find("a").Length()
+	})
+	return pages
 
 }
 
-// go lang standard library 참조
-// chan <-를 함으로써 이 channel은 보내기만 가능해짐 (구체적으로 명시하기 위해)
-func hitURL(url string, c chan<- resultRequest) {
-	resp, err := http.Get(url)
-	if err != nil || resp.StatusCode >= 400 {
-		c <- resultRequest{url: url, status: "FAILED"}
-	} else {
-		c <- resultRequest{url: url, status: "OK"}
+/*
+http.Get 이용시 403 status코드가 나옴. newrequest를 통해 request객체를 만들고 header를 추가(사이트 마다 다름)
+
+func getHttp(url string) *http.Response {
+	req, err := http.NewRequest("GET", url, nil)
+	checkErr(err)
+	req.Header.Add("User-Agent", "Crawler")
+	client := &http.Client{} //http client를 통해서 request 실행
+	res, rErr := client.Do(req)
+	checkErr(rErr)
+	checkCode(res)
+	return res
+}
+*/
+
+func checkErr(err error) {
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func checkCode(res *http.Response) {
+	if res.StatusCode != 200 {
+		log.Fatalln("Request failed with Status", res.StatusCode)
 	}
 }
