@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"encoding/csv"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -26,7 +27,7 @@ func main() {
 		extractedjobs := getPage(i)
 		jobs = append(jobs, extractedjobs...)
 	}
-	fmt.Println(jobs)
+	writeJobs(jobs)
 }
 
 func getPage(page int) []extractedJob {
@@ -83,6 +84,25 @@ func getPages() int {
 	})
 	return pages
 
+}
+
+// csv형태로 저장
+func writeJobs(jobs []extractedJob) {
+	file, err := os.Create("jobs.csv")
+	checkErr(err)
+
+	w := csv.NewWriter(file)
+	defer w.Flush()
+
+	headers := []string{"ID", "Company", "Title", "Location"}
+	wErr := w.Write(headers)
+	checkErr(wErr)
+	for _, job := range jobs {
+		jobSlice := []string{"https://www.saramin.co.kr/zf_user/jobs/relay/view?isMypage=no&rec_idx=" + job.id, job.company, job.title, job.location}
+		jwErr := w.Write(jobSlice)
+		checkErr(jwErr)
+
+	}
 }
 
 func checkErr(err error) {
