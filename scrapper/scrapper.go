@@ -19,6 +19,7 @@ type extractedJob struct {
 	location string
 }
 
+// 다른곳에서 import 하고 싶으면 첫글자 대문자!!
 func Scrape(term string) {
 	var BaseURL string = "https://www.saramin.co.kr/zf_user/search/recruit?searchType=search&searchword=" + term
 
@@ -65,9 +66,9 @@ func getPage(page int, url string, mainC chan<- []extractedJob) {
 // channel을 통해 보낼 메세지들을 return
 func extractJob(card *goquery.Selection, c chan<- extractedJob) {
 	id, _ := card.Attr("value")
-	company := cleanString(card.Find(".corp_name").Text())
-	title := cleanString(card.Find(".job_tit>a").Text())
-	location := cleanString(card.Find(".job_condition>span>a").Text())
+	company := CleanString(card.Find(".corp_name").Text())
+	title := CleanString(card.Find(".job_tit>a").Text())
+	location := CleanString(card.Find(".job_condition>span>a").Text())
 	c <- extractedJob{
 		id:       id,
 		company:  company,
@@ -76,7 +77,7 @@ func extractJob(card *goquery.Selection, c chan<- extractedJob) {
 }
 
 // 배열의 스페이스 없이 오직 텍스트만 갖고싶을때
-func cleanString(str string) string {
+func CleanString(str string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(str)), " ")
 }
 
